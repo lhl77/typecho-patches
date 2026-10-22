@@ -1,0 +1,15 @@
+--- a/var/Widget/Contents/EditTrait.php
++++ b/var/Widget/Contents/EditTrait.php
+@@ -246,7 +246,11 @@
+         $items = $layout->getItems();
+         foreach ($items as $item) {
+             if ($item instanceof Element) {
+-                $name = $item->input->getAttribute('name');
++                // 自定义字段的 input 可能没有 name 属性 → getAttribute() 返回 null，
++                // PHP 8.4+ 把 null 传给 preg_match() 的 $subject 会报
++                // 「Passing null to parameter #2 of type string is deprecated」（257 / 261 行）。
++                // 转成字符串：null → ''，与下面 'fields[' . $name . ']' 的隐式转换行为一致。
++                $name = (string) $item->input->getAttribute('name');
+ 
+                 $isFieldReadOnly = Contents::pluginHandle()
+                     ->trigger($plugged)->call('isFieldReadOnly', $name);

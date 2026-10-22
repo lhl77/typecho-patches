@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "typecho-patches index",
+  "type": "object",
+  "required": ["schema", "patches"],
+  "properties": {
+    "schema": { "const": 1 },
+    "updated": { "type": "string" },
+    "min_ab": { "type": "string", "description": "低于该 AdminBeautify 版本不显示补丁" },
+    "patches": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "typecho", "files"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,80}$" },
+          "title": { "type": "string", "maxLength": 120 },
+          "severity": { "enum": ["info", "warn", "error", "security"] },
+          "typecho": {
+            "type": "object",
+            "required": ["min"],
+            "properties": {
+              "min": { "type": "string", "pattern": "^\\d+(\\.\\d+){0,2}$" },
+              "max": { "type": "string", "pattern": "^\\d+(\\.\\d+){0,2}$" }
+            }
+          },
+          "notes": { "type": "string", "maxLength": 4000 },
+          "refs": { "type": "array", "items": { "type": "string" } },
+          "files": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["path", "sha256_before", "sha256_after", "after"],
+              "properties": {
+                "path": { "type": "string" },
+                "mode": { "enum": ["replace", "diff"], "default": "replace" },
+                "eol": { "enum": ["lf", "crlf"], "default": "lf" },
+                "sha256_before": {
+                  "oneOf": [
+                    { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+                    { "type": "array", "items": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+                  ]
+                },
+                "sha256_after": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+                "after": { "type": "string" },
+                "diff": { "type": "string" },
+                "expect": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
