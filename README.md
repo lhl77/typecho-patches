@@ -36,6 +36,21 @@ python3 tools/make_patch.py \
 
 脚本会：建目录 → 拷 before/after → 出 `change.diff`（无时间戳）→ 算 `sha256`（统一 LF）→ 改写 `index.json`。
 
+### 一个补丁跨多个文件
+
+同一个 `--id` 再跑一次即可（`--expect` 每个文件各自命中自己的改动）：
+
+```bash
+for f in var/Typecho/Common.php var/Typecho/Http/Client.php var/Widget/Service.php; do
+  python3 tools/make_patch.py --id 2026-10-cve-2026-7025-ssrf --typecho 1.3.0 \
+    --path "$f" --before "/tmp/orig/$f" --after "/tmp/fixed/$f" \
+    --title "…" --severity security --expect "/…/"
+done
+```
+
+`files[]` 会累加，`meta.json` 与 `change.diff` 自动汇总全部文件（客户端按文件逐个校验
+`sha256_before` / `expect`，任一文件冲突就整体拒绝）。
+
 ## 字段说明
 
 | 字段 | 说明 |

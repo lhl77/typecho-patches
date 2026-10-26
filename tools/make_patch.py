@@ -54,6 +54,27 @@ def read_lf(path):
     return raw.replace(b'\r\n', b'\n')
 
 
+def write_diffs(patch_id, ver, entry):
+    """把补丁目录下所有文件（同版本）的 diff 拼成一份 change.diff。"""
+    base = os.path.join(ROOT, 'patches', patch_id, ver)
+    chunks = []
+    for f in entry.get('files', []):
+        b = os.path.join(base, 'before', f['path'])
+        a = os.path.join(base, 'after', f['path'])
+        if not (os.path.exists(b) and os.path.exists(a)):
+            continue
+        tb = read_lf(b).decode('utf-8', 'replace').splitlines(keepends=True)
+        ta = read_lf(a).decode('utf-8', 'replace').splitlines(keepends=True)
+        if tb == ta:
+            continue
+        chunks.append(''.join(difflib.unified_diff(
+            tb, ta, fromfile='a/' + f['path'], tofile='b/' + f['path'], n=3)))
+    merged = ''.join(chunks)
+    os.makedirs(base, exist_ok=True)
+    open(os.path.join(base, 'change.diff'), 'w', encoding='utf-8').write(merged)
+    return merged
+
+
 def sha(b):
     return hashlib.sha256(b).hexdigest()
 
@@ -87,7 +108,7 @@ def main():
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         open(dst, 'wb').write(data)
 
-    # change.diff（无时间戳，仅审阅）
+    # change.diff（无时间戳，仅审阅）—— 单文件先写一份，多文件时由 write_diffs() 合并重写
     text_before = before_bytes.decode('utf-8', 'replace').splitlines(keepends=True)
     text_after = after_bytes.decode('utf-8', 'replace').splitlines(keepends=True)
     diff = ''.join(difflib.unified_diff(text_before, text_after,
@@ -131,11 +152,15 @@ def main():
     index['updated'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
     open(INDEX, 'w', encoding='utf-8').write(json.dumps(index, ensure_ascii=False, indent=2) + '\n')
 
-    # meta.json（人读）
+    # change.diff：把本补丁下所有文件（当前版本）的 diff 合并成一份，供人工审阅
+    diff = write_diffs(args.id, ver, entry)
+
+    # meta.json（人读）—— 多文件补丁要把 entry 里累积的 files 全部列出
     meta = {
         'id': args.id, 'title': args.title, 'severity': args.severity,
         'typecho': entry['typecho'],
-        'files': [{'path': rel, 'sha256_before': f['sha256_before'], 'sha256_after': h_after}],
+        'files': [{'path': x['path'], 'sha256_before': x.get('sha256_before', []),
+                   'sha256_after': x.get('sha256_after', '')} for x in entry['files']],
         'updated': index['updated'],
     }
     open(os.path.join(ROOT, 'patches', args.id, 'meta.json'), 'w', encoding='utf-8').write(
